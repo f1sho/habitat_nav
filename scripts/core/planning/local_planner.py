@@ -61,11 +61,32 @@ class DiscreteDWAPlanner:
         
         for det in yolo_detections:
             if det['class_name'] in sensitive_objects:
-                polygon = np.array(det['polygon']) 
+                # Check for available keys to safely extract spatial data
+                box_center_x = None
+                box_center_y = None
                 
-                # Calculate the centroid of the segmentation mask
-                box_center_x = np.mean(polygon[:, 0])
-                box_center_y = np.mean(polygon[:, 1])
+                if 'polygon' in det:
+                    polygon = np.array(det['polygon']) 
+                    box_center_x = np.mean(polygon[:, 0])
+                    box_center_y = np.mean(polygon[:, 1])
+                elif 'mask' in det:
+                    mask = np.array(det['mask'])
+                    box_center_x = np.mean(mask[:, 0])
+                    box_center_y = np.mean(mask[:, 1])
+                elif 'bbox' in det:
+                    # Fallback to bounding box format [x_min, y_min, x_max, y_max]
+                    bbox = det['bbox']
+                    box_center_x = (bbox[0] + bbox[2]) / 2.0
+                    box_center_y = (bbox[1] + bbox[3]) / 2.0
+                elif 'box' in det:
+                    # Alternative bounding box key name
+                    box = det['box']
+                    box_center_x = (box[0] + box[2]) / 2.0
+                    box_center_y = (box[1] + box[3]) / 2.0
+                    
+                # Skip to next detection if no valid geometric data is found
+                if box_center_x is None or box_center_y is None:
+                    continue
                 
                 if (width * 0.2) < box_center_x < (width * 0.8):
                     center_x_px = min(max(int(box_center_x), 0), width - 1)

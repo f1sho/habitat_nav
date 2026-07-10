@@ -2,7 +2,7 @@ import numpy as np
 from ultralytics import YOLO
 
 class PerceptionModule:
-    def __init__(self, model_path="yolov8n-seg.pt", camera_height=1.5, focal_length=800, img_height=480):
+    def __init__(self, model_path="yolo26n-seg.pt", camera_height=1.5, focal_length=800, img_height=480):
         self.model = YOLO(model_path)
         self.camera_height = camera_height  # Height of the camera from the ground in meters
         self.focal_length = focal_length    # Focal length of the camera in pixels
@@ -49,9 +49,7 @@ class PerceptionModule:
                 # Calculate metric distance using IPM algorithm
                 estimated_dist = self.estimate_distance_ipm(polygon)
 
-                # --- MODIFICATION START ---
-                # Context: Building the detection dictionary inside the results loop
-                # Changes: Changed the key 'score' to 'confidence' to prevent KeyError in the visualizer module.
+                # Add the extracted polygon data into the dictionary for downstream visualization
                 class_id = int(classes[i])
                 class_name = self.model.names[class_id]
 
@@ -60,8 +58,8 @@ class PerceptionModule:
                     "class_name": class_name,
                     "confidence": float(scores[i]),
                     "bbox": boxes[i],
-                    "estimated_distance": estimated_dist
+                    "estimated_distance": estimated_dist,
+                    "polygon": polygon
                 })
-                # --- MODIFICATION END ---
 
         return detections

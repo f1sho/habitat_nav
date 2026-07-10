@@ -11,29 +11,64 @@ class DemoVisualizer:
         # Convert RGBA to BGR
         bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGBA2BGR)
 
-        # CHANGE START: Draw segmentation polygons instead of bounding boxes
+        # Draw true segmentation outlines and ignore bounding boxes
         for det in detections:
-            polygon = det['polygon'] 
-            conf = det['confidence']
-            name = det['class_name']
+            # Print keys to check the actual data structure from the perception module
+            print(f"Debug check keys: {list(det.keys())}")
             
-            # Convert polygon coordinates to integers for OpenCV
-            poly_pts = np.int32([polygon])
+            text_x = None
+            text_y = None
             
-            # Draw the polygon outline
-            cv2.polylines(bgr_frame, poly_pts, isClosed=True, color=(0, 255, 0), thickness=2)
+            if 'polygon' in det:
+                polygon = np.array(det['polygon'])
+                poly_pts = np.int32([polygon])
+                cv2.polylines(bgr_frame, poly_pts, isClosed=True, color=(0, 255, 0), thickness=2)
+                text_x = int(np.min(polygon[:, 0]))
+                text_y = int(np.min(polygon[:, 1])) - 10
+                
+            elif 'mask' in det:
+                mask_data = det['mask']
+                if isinstance(mask_data, np.ndarray) and len(mask_data.shape) == 2:
+                    mask_uint8 = (mask_data * 255).astype(np.uint8)
+                    contours, _ = cv2.findContours(mask_uint8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    cv2.drawContours(bgr_frame, contours, -1, (0, 255, 0), 2)
+                    
+                    if len(contours) > 0:
+                        all_pts = np.vstack(contours)
+                        text_x = int(np.min(all_pts[:, 0, 0]))
+                        text_y = int(np.min(all_pts[:, 0, 1])) - 10
+                    else:
+                        continue
+                else:
+                    polygon = np.array(mask_data)
+                    poly_pts = np.int32([polygon])
+                    cv2.polylines(bgr_frame, poly_pts, isClosed=True, color=(0, 255, 0), thickness=2)
+                    text_x = int(np.min(polygon[:, 0]))
+                    text_y = int(np.min(polygon[:, 1])) - 10
+
+            elif 'segmentation' in det:
+                # Catch another common key name for masks
+                seg_data = np.array(det['segmentation'])
+                poly_pts = np.int32([seg_data])
+                cv2.polylines(bgr_frame, poly_pts, isClosed=True, color=(0, 255, 0), thickness=2)
+                text_x = int(np.min(seg_data[:, 0]))
+                text_y = int(np.min(seg_data[:, 1])) - 10
+
+            else:
+                # If only boxes are available the drawing is skipped
+                continue
+
+            conf = det.get('confidence', 0.0)
+            name = det.get('class_name', 'Unknown')
             
-            # Find the top point of the polygon to place the text label
-            text_x = int(np.min(polygon[:, 0]))
-            text_y = int(np.min(polygon[:, 1])) - 10
-            
-            # Ensure text does not go out of the top boundary
+            if text_y is None or text_x is None:
+                continue
+                
             if text_y < 10:
                 text_y = 20
                 
             cv2.putText(bgr_frame, f"{name} {conf:.2f}", (text_x, text_y), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-        # CHANGE END
 
         # Draw semi transparent HUD at the top left corner
         overlay = bgr_frame.copy()

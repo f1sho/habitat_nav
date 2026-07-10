@@ -97,7 +97,7 @@ def main():
             rgb_frame = rgb_frame[..., :3]
             
             # Retrieve both detections and the real predicted depth frame
-            detections, depth_frame = perception.process_frame(rgb_frame)
+            detections, depth_frame, *_ = perception.process_frame(rgb_frame)
 
             action = local_planner.get_best_action(depth_frame, detections, current_state, target_wp)
             dist_to_wp = np.linalg.norm(current_state.position[[0, 2]] - target_wp[[0, 2]])
