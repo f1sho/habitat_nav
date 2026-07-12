@@ -1,0 +1,251 @@
+{
+  "model_name": "yolo26n_seg_onnx",
+  "model_path": "yolo26n-seg.onnx",
+  "created_at": "2026-07-12T20:53:51",
+  "episodes": 10,
+  "seed_start": 1000,
+  "seeds": [
+    1000,
+    1001,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1008,
+    1009
+  ],
+  "warmup_frames": 10,
+  "scene_path": "/home/hannah/data/replica_v1/apartment_2/habitat/mesh_semantic.ply",
+  "navmesh_path": "/home/hannah/data/replica_v1/apartment_2/habitat/mesh_semantic.navmesh",
+  "min_start_goal_distance": 8.0,
+  "max_route_attempts": 500,
+  "max_steps": 800,
+  "waypoint_threshold": 0.25,
+  "safe_distance": 0.1,
+  "semantic_safe_distance": 1.2,
+  "device": 0,
+  "episode_results": [
+    {
+      "model_name": "yolo26n_seg_onnx",
+      "episode_id": 0,
+      "seed": 1000,
+      "success": true,
+      "steps": 113,
+      "start_position": [
+        -2.0363504886627197,
+        -1.4610724449157715,
+        0.5942755341529846
+      ],
+      "goal_position": [
+        5.9618964195251465,
+        -1.4610724449157715,
+        -4.219837665557861
+      ],
+      "shortest_path": 12.90725454759223,
+      "spl": 0.9575479280866878,
+      "navigation_time": 1.33072442699995,
+      "path_length": 13.479486685729347,
+      "collision_count": 2
+    },
+    {
+      "model_name": "yolo26n_seg_onnx",
+      "episode_id": 1,
+      "seed": 1001,
+      "success": true,
+      "steps": 92,
+      "start_position": [
+        1.7284518480300903,
+        -1.4610724449157715,
+        -6.736269474029541
+      ],
+      "goal_position": [
+        5.595765590667725,
+        -1.4610724449157715,
+        0.8351871967315674
+      ],
+      "shortest_path": 11.003778561888936,
+      "spl": 0.9568501406548394,
+      "navigation_time": 1.02141983599995,
+      "path_length": 11.500002032040546,
+      "collision_count": 0
+    },
+    {
+      "model_name": "yolo26n_seg_onnx",
+      "episode_id": 2,
+      "seed": 1002,
+      "success": true,
+      "steps": 83,
+      "start_position": [
+        -0.8093017935752869,
+        -1.4610724449157715,
+        1.0978896617889404
+      ],
+      "goal_position": [
+        1.3172399997711182,
+        -1.4610724449157715,
+        -7.411203861236572
+      ],
+      "shortest_path": 9.933737375842087,
+      "spl": 0.9691450828105859,
+      "navigation_time": 0.9211486330000298,
+      "path_length": 10.25000028585357,
+      "collision_count": 0
+    },
+    {
+      "model_name": "yolo26n_seg_onnx",
+      "episode_id": 3,
+      "seed": 1003,
+      "success": true,
+      "steps": 69,
+      "start_position": [
+        -1.4870975017547607,
+        -1.4610724449157715,
+        -2.6275441646575928
+      ],
+      "goal_position": [
+        6.028094291687012,
+        -1.4610724449157715,
+        0.7786198854446411
+      ],
+      "shortest_path": 9.512484356655834,
+      "spl": 1.0,
+      "navigation_time": 0.7833868400000483,
+      "path_length": 9.499999368352546,
+      "collision_count": 0
+    },
+    {
+      "model_name": "yolo26n_seg_onnx",
+      "episode_id": 4,
+      "seed": 1004,
+      "success": true,
+      "steps": 112,
+      "start_position": [
+        1.2490428686141968,
+        -1.4610724449157715,
+        -6.892687797546387
+      ],
+      "goal_position": [
+        -2.0254902839660645,
+        -1.4610724449157715,
+        0.8237802982330322
+      ],
+      "shortest_path": 10.849047841460242,
+      "spl": 0.9254840907204175,
+      "navigation_time": 1.2766563790000873,
+      "path_length": 11.722565466268687,
+      "collision_count": 2
+    },
+    {
+      "model_name": "yolo26n_seg_onnx",
+      "episode_id": 5,
+      "seed": 1005,
+      "success": true,
+      "steps": 88,
+      "start_position": [
+        6.041932582855225,
+        -1.4610724449157715,
+        0.6027135848999023
+      ],
+      "goal_position": [
+        0.598914384841919,
+        -1.4610724449157715,
+        -5.457447528839111
+      ],
+      "shortest_path": 10.21342627469757,
+      "spl": 0.9500860755904537,
+      "navigation_time": 0.9935704500001066,
+      "path_length": 10.750001012645294,
+      "collision_count": 0
+    },
+    {
+      "model_name": "yolo26n_seg_onnx",
+      "episode_id": 6,
+      "seed": 1006,
+      "success": true,
+      "steps": 109,
+      "start_position": [
+        6.215358257293701,
+        -1.4610724449157715,
+        -0.6197390556335449
+      ],
+      "goal_position": [
+        -2.456724166870117,
+        -1.4610724449157715,
+        -2.6636791229248047
+      ],
+      "shortest_path": 11.477240260096531,
+      "spl": 0.9369175524632265,
+      "navigation_time": 1.1815405069999088,
+      "path_length": 12.250000258744226,
+      "collision_count": 0
+    },
+    {
+      "model_name": "yolo26n_seg_onnx",
+      "episode_id": 7,
+      "seed": 1007,
+      "success": true,
+      "steps": 114,
+      "start_position": [
+        -2.235811710357666,
+        -1.4610724449157715,
+        -2.433501720428467
+      ],
+      "goal_position": [
+        6.279892444610596,
+        -1.4610724449157715,
+        -1.2428176403045654
+      ],
+      "shortest_path": 12.027240260096532,
+      "spl": 0.9077162344867769,
+      "navigation_time": 1.2986181409999062,
+      "path_length": 13.250000168716536,
+      "collision_count": 0
+    },
+    {
+      "model_name": "yolo26n_seg_onnx",
+      "episode_id": 8,
+      "seed": 1008,
+      "success": true,
+      "steps": 109,
+      "start_position": [
+        3.4589924812316895,
+        -1.4610724449157715,
+        -7.999228000640869
+      ],
+      "goal_position": [
+        2.788226366043091,
+        -1.4610724449157715,
+        0.44066089391708374
+      ],
+      "shortest_path": 10.123144528435656,
+      "spl": 0.9202858321247577,
+      "navigation_time": 1.2432302260001507,
+      "path_length": 11.000000407550903,
+      "collision_count": 0
+    },
+    {
+      "model_name": "yolo26n_seg_onnx",
+      "episode_id": 9,
+      "seed": 1009,
+      "success": true,
+      "steps": 73,
+      "start_position": [
+        2.1164233684539795,
+        -1.4610724449157715,
+        -8.120721817016602
+      ],
+      "goal_position": [
+        2.7023768424987793,
+        -1.4610724449157715,
+        0.7814958095550537
+      ],
+      "shortest_path": 9.613878638918646,
+      "spl": 0.9613877909628915,
+      "navigation_time": 0.8422225840001829,
+      "path_length": 10.000000758580187,
+      "collision_count": 0
+    }
+  ]
+}

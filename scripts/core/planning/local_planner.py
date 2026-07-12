@@ -98,10 +98,10 @@ class DiscreteDWAPlanner:
                         detected_sensitive.append(f"{det['class_name']} at {object_distance:.2f}m")
                         break
                         
-        if detected_sensitive:
-            print(f"[Planner Log] Sensitive object detected: {', '.join(detected_sensitive)}. Safe distance set to {current_safe_dist}m.")
-        else:
-            print(f"[Planner Log] Path clear. Current safe distance is {current_safe_dist}m.")
+        # if detected_sensitive:
+        #     print(f"[Planner Log] Sensitive object detected: {', '.join(detected_sensitive)}. Safe distance set to {current_safe_dist}m.")
+        # else:
+        #     print(f"[Planner Log] Path clear. Current safe distance is {current_safe_dist}m.")
 
         heading_error = self._calculate_heading_error(agent_state, target_waypoint)
         

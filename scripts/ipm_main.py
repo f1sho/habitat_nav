@@ -6,8 +6,12 @@ from core.perception import PerceptionModule
 from core.planning.local_planner import DiscreteDWAPlanner
 from utils.visualizer import DemoVisualizer
 from utils.trajectory_plotter import plot_topdown_trajectory
+from evaluation.navigation_metrics import NavigationMetrics
+from evaluation.evaluator import Evaluator
+from evaluation.model_metrics import ModelMetrics
 
 def main():
+    MODEL_PATH = "yolo26n-seg.onnx"
     scene_path = "/home/hannah/data/replica_v1/apartment_2/habitat/mesh_semantic.ply"
     navmesh_path = "/home/hannah/data/replica_v1/apartment_2/habitat/mesh_semantic.navmesh"
 
@@ -36,18 +40,28 @@ def main():
     SIM_IMG_HEIGHT = 480
     
     perception = PerceptionModule(
-        model_path="yolo26n-seg.pt", 
+        model_path=MODEL_PATH,
         camera_height=SIM_CAMERA_HEIGHT,
         focal_length=SIM_FOCAL_LENGTH,
         img_height=SIM_IMG_HEIGHT
     )
 
-    # --- MODIFICATION START ---
+    model_metrics = ModelMetrics(
+        model_path=MODEL_PATH,
+        model=perception.model.model if MODEL_PATH.endswith(".pt") else None
+    )
+
     # Decrease general safe distance and increase semantic safe distance for pure vision testing
     local_planner = DiscreteDWAPlanner(safe_distance=0.1, semantic_safe_distance=1.2)
-    # --- MODIFICATION END ---
 
     visualizer = DemoVisualizer()
+
+    evaluator = Evaluator(
+        model_name = MODEL_PATH
+    )
+    nav_metrics = NavigationMetrics()
+    evaluator.log_model(model_metrics)
+    evaluator.start_episode()
     
     print("\n--- Starting Navigation Loop ---")
 
@@ -72,6 +86,18 @@ def main():
     max_steps = 800  
 
     actual_trajectory = []
+
+    shortest_path = 0.0
+
+    for i in range(len(waypoints) - 1):
+        shortest_path += np.linalg.norm(
+            waypoints[i + 1] - waypoints[i]
+        )
+
+    nav_metrics.start_episode(
+        start_position=start_pos,
+        shortest_path=shortest_path
+    )
     
     try:
         for step in range(max_steps):
@@ -81,6 +107,7 @@ def main():
             # Use get_state to fetch the real time position from the C++ simulator engine
             current_state = agent.get_state()
             current_agent_position = current_state.position.copy()
+            nav_metrics.update(current_agent_position)
             actual_trajectory.append(current_agent_position)
             
             if np.linalg.norm(agent.state.position - target_wp) < 0.25:
@@ -88,6 +115,7 @@ def main():
                 current_wp_idx += 1
                 if current_wp_idx >= len(waypoints):
                     print("Goal Reached!")
+                    nav_metrics.finish_episode(True)
                     break
                 target_wp = waypoints[current_wp_idx]
 
@@ -101,7 +129,12 @@ def main():
             # This prevents KeyError and forces the planner to rely solely on IPM detections
             depth_frame = np.ones((480, 640), dtype=np.float32) * 10.0
 
-            detections = perception.process_frame(rgb_frame)
+            detections, perception_metrics = perception.process_frame(rgb_frame)
+            # print(perception_metrics)
+            evaluator.update_frame(
+                step,
+                perception_metrics
+            )
 
             action = local_planner.get_best_action(depth_frame, detections, agent.state, target_wp)
             dist_to_wp = np.linalg.norm(agent.state.position - target_wp)
@@ -116,8 +149,15 @@ def main():
         print("\n[Manual Stop] User interrupted the script.")
     finally:
         print("\nSaving video and cleaning up...")
+
+        if not nav_metrics.success:
+            nav_metrics.finish_episode(False)
+
+        evaluator.finish_episode(nav_metrics)
+
         visualizer.close()
         plot_topdown_trajectory(env, start_pos, goal_pos, waypoints, actual_trajectory)
+        evaluator.save()
         env.close()
 
 if __name__ == "__main__":
