@@ -2,9 +2,15 @@ import habitat_sim
 import numpy as np
 
 class HabitatEnv:
-    def __init__(self, scene_path, navmesh_path):
+    def __init__(
+        self,
+        scene_path,
+        navmesh_path,
+        enable_depth=False,
+    ):
         self.scene_path = scene_path
         self.navmesh_path = navmesh_path
+        self.enable_depth = enable_depth
         self.sim = self._init_sim()
         self._load_navmesh()
 
@@ -19,23 +25,29 @@ class HabitatEnv:
         rgb_sensor = habitat_sim.CameraSensorSpec()
         rgb_sensor.uuid = "color_sensor"
         rgb_sensor.sensor_type = habitat_sim.SensorType.COLOR
-        rgb_sensor.resolution = [480, 640] 
-        rgb_sensor.position = [0.0, 1.5, 0.0] 
+        rgb_sensor.sensor_subtype = habitat_sim.SensorSubType.PINHOLE
+        rgb_sensor.resolution = [480, 640]
+        rgb_sensor.position = [0.0, 1.5, 0.0]
+        rgb_sensor.orientation = [0.0, 0.0, 0.0]
+        rgb_sensor.hfov = 90.0
 
-        # --- MODIFICATION START ---
-        # Context: Removing the physical depth sensor to enforce purely monocular vision.
-        # Changes: Commented out all depth sensor configurations.
-        
-        # Attach a Depth sensor to the robot (DISABLED FOR PURE MONOCULAR TEST)
-        # depth_sensor = habitat_sim.CameraSensorSpec()
-        # depth_sensor.uuid = "depth_sensor"
-        # depth_sensor.sensor_type = habitat_sim.SensorType.DEPTH
-        # depth_sensor.resolution = [480, 640]
-        # depth_sensor.position = [0.0, 1.5, 0.0]
+        sensor_specs = [rgb_sensor]
+
+        if self.enable_depth:
+            depth_sensor = habitat_sim.CameraSensorSpec()
+            depth_sensor.uuid = "depth_sensor"
+            depth_sensor.sensor_type = habitat_sim.SensorType.DEPTH
+            depth_sensor.sensor_subtype = habitat_sim.SensorSubType.PINHOLE
+
+            depth_sensor.resolution = [480, 640]
+            depth_sensor.position = [0.0, 1.5, 0.0]
+            depth_sensor.orientation = [0.0, 0.0, 0.0]
+            depth_sensor.hfov = 90.0
+
+            sensor_specs.append(depth_sensor)
 
         # Only pass the rgb_sensor to the agent specification
-        agent_cfg.sensor_specifications = [rgb_sensor]
-        # --- MODIFICATION END ---
+        agent_cfg.sensor_specifications = sensor_specs
 
         # Create a clean MetadataMediator for the default dataset
         mm = habitat_sim.metadata.MetadataMediator()

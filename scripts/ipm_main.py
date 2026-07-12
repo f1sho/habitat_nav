@@ -1,5 +1,6 @@
 import numpy as np
 import time
+import math
 from core.habitat_env import HabitatEnv
 from core.planning.global_planner import GlobalPlanner
 from core.perception import PerceptionModule
@@ -36,14 +37,22 @@ def main():
     global_planner = GlobalPlanner(env.sim.pathfinder, map_height=start_pos[1])
     
     SIM_CAMERA_HEIGHT = 1.5
-    SIM_FOCAL_LENGTH = 800.0
-    SIM_IMG_HEIGHT = 480
+    SIM_IMAGE_WIDTH = 640
+    SIM_IMAGE_HEIGHT = 480
+    SIM_HFOV_DEG = 90.0
+
+    SIM_FOCAL_LENGTH = SIM_IMAGE_WIDTH / (
+        2.0
+        * math.tan(
+            math.radians(SIM_HFOV_DEG) / 2.0
+        )
+    )
     
     perception = PerceptionModule(
         model_path=MODEL_PATH,
         camera_height=SIM_CAMERA_HEIGHT,
         focal_length=SIM_FOCAL_LENGTH,
-        img_height=SIM_IMG_HEIGHT
+        img_height=SIM_IMAGE_HEIGHT,
     )
 
     model_metrics = ModelMetrics(

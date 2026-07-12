@@ -15,7 +15,6 @@ from core.planning.local_planner import DiscreteDWAPlanner
 from evaluation.evaluator import Evaluator
 from evaluation.model_metrics import ModelMetrics
 from evaluation.navigation_metrics import NavigationMetrics
-from evaluation.ipm_accuracy_evaluator import IPMAccuracyEvaluator
 
 
 DEFAULT_SCENE_PATH = (
@@ -252,7 +251,6 @@ def run_navigation(
     semantic_safe_distance: float = 1.2,
     perception: Optional[PerceptionModule] = None,
     evaluator: Optional[Evaluator] = None,
-    ipm_accuracy_evaluator: Optional[IPMAccuracyEvaluator] = None,
     log_model_metrics: bool = True,
     save_results: bool = True,
     verbose: bool = False,
@@ -275,9 +273,6 @@ def run_navigation(
         Optional shared evaluator. run_evaluation.py can reuse one evaluator
         across all episodes for the same model and call evaluator.save() once
         after the batch.
-    ipm_accuracy_evaluator:
-        Optional shared IPM accuracy evaluator. When provided, a co-located
-        Habitat depth sensor is enabled only for ground-truth evaluation.
     """
     if max_steps <= 0:
         raise ValueError("max_steps must be greater than zero.")
@@ -303,11 +298,7 @@ def run_navigation(
     result: Optional[Dict[str, Any]] = None
 
     try:
-        env = HabitatEnv(
-            scene_path,
-            navmesh_path,
-            enable_depth=ipm_accuracy_evaluator is not None,
-        )
+        env = HabitatEnv(scene_path, navmesh_path)
 
         # Fixed seeds make episodes reproducible across model variants.
         env.sim.seed(seed)
@@ -475,10 +466,6 @@ def run_navigation(
             observations = env.get_observations()
             rgb_frame = observations["color_sensor"][..., :3]
 
-            depth_frame = None
-            if ipm_accuracy_evaluator is not None:
-                depth_frame = observations["depth_sensor"]
-
             if quiet_stream is None:
                 detections, perception_metrics = perception.process_frame(
                     rgb_frame
@@ -490,14 +477,6 @@ def run_navigation(
                     detections, perception_metrics = perception.process_frame(
                         rgb_frame
                     )
-
-            if ipm_accuracy_evaluator is not None:
-                ipm_accuracy_evaluator.update_frame(
-                    episode=episode_id,
-                    step=step,
-                    detections=detections,
-                    depth_frame=depth_frame,
-                )
 
             evaluator.update_frame(
                 step,
