@@ -1,0 +1,10 @@
+]633;E;date;1bb85c73-492d-4fce-853b-abb0bb3d7c86]633;CTuesday, July 14, 2026 AM10:22:37 HKT
+Python 3.9.23
+torch= 2.6.0
+ultralytics= 8.4.47
+tensorrt= 10.16.1.11
+name, driver_version
+NVIDIA GeForce RTX 3060 Laptop GPU, 580.159.03
+361fbfabab285c3237700b6bb91d7ecfa602cd945fffda8dbe1242829b71e73f  scripts/yolo26n-seg.pt
+e14bb613891b7fdf04c501cc71008c8bd0834b066c1210a5b611882db2294dd4  scripts/yolo26n-seg.onnx
+d81c720fb7a4d2cabf92b2aa2949913648383811c1403f6e7ee21e5852dac0c4  scripts/yolo26n-seg_fp16.engine
