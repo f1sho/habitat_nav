@@ -200,8 +200,10 @@ def run_worker(args: argparse.Namespace) -> None:
         dtype=np.uint8,
     )
 
-    for _ in range(args.warmup_frames):
-        perception.process_frame(warmup_frame)
+    perception.warmup(
+        warmup_frame,
+        iterations=args.warmup_frames,
+    )
 
     gpu_memory_after_mb = (
         ModelMetrics.get_process_gpu_memory_mb()
