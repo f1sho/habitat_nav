@@ -1,0 +1,2 @@
+model_name,episode,total_samples,contact_valid_samples,contact_valid_rate,all_mae_m,all_rmse_m,all_mape_pct,all_mean_signed_error_m,contact_valid_mae_m,contact_valid_rmse_m,contact_valid_mape_pct,contact_valid_mean_signed_error_m
+yolo26n_seg_pt,0,123,50,0.4065040650406504,0.6898515168574326,1.0579561228029437,47.51960644427114,0.5615855915206328,0.1961977211151924,0.22130266248463146,11.147556656755116,-0.1036655029818387

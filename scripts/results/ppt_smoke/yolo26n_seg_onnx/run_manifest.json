@@ -1,0 +1,44 @@
+{
+  "model_name": "yolo26n_seg_onnx",
+  "model_path": "yolo26n-seg.onnx",
+  "created_at": "2026-07-29T00:49:10",
+  "episodes": 1,
+  "seed_start": 1000,
+  "seeds": [
+    1000
+  ],
+  "warmup_frames": 10,
+  "scene_path": "/home/hannah/data/replica_v1/apartment_2/habitat/mesh_semantic.ply",
+  "navmesh_path": "/home/hannah/data/replica_v1/apartment_2/habitat/mesh_semantic.navmesh",
+  "min_start_goal_distance": 8.0,
+  "max_route_attempts": 500,
+  "max_steps": 800,
+  "waypoint_threshold": 0.25,
+  "safe_distance": 0.1,
+  "semantic_safe_distance": 1.2,
+  "device": 0,
+  "episode_results": [
+    {
+      "model_name": "yolo26n_seg_onnx",
+      "episode_id": 0,
+      "seed": 1000,
+      "success": true,
+      "steps": 113,
+      "start_position": [
+        -2.0363504886627197,
+        -1.4610724449157715,
+        0.5942755341529846
+      ],
+      "goal_position": [
+        5.9618964195251465,
+        -1.4610724449157715,
+        -4.219837665557861
+      ],
+      "shortest_path": 12.90725454759223,
+      "spl": 0.9575479280866878,
+      "navigation_time": 1.1360367289998976,
+      "path_length": 13.479486685729347,
+      "collision_count": 2
+    }
+  ]
+}

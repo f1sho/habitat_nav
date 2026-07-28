@@ -12,6 +12,7 @@ class IPMAccuracyEvaluator:
         camera_height,
         focal_length,
         image_height,
+        camera_pitch_deg=15.0,
         save_root="results/ipm_accuracy",
         bottom_band_height=5,
         contact_height_threshold=0.15,
@@ -21,6 +22,18 @@ class IPMAccuracyEvaluator:
         self.camera_height = float(camera_height)
         self.focal_length = float(focal_length)
         self.principal_y = float(image_height) / 2.0
+        self.camera_pitch_deg = float(camera_pitch_deg)
+
+        if not 0.0 <= self.camera_pitch_deg < 90.0:
+            raise ValueError(
+                "camera_pitch_deg must be in the range [0, 90)."
+            )
+
+        self.camera_pitch_rad = float(
+            np.deg2rad(self.camera_pitch_deg)
+        )
+        self.pitch_sin = float(np.sin(self.camera_pitch_rad))
+        self.pitch_cos = float(np.cos(self.camera_pitch_rad))
 
         self.bottom_band_height = int(bottom_band_height)
         self.contact_height_threshold = float(
@@ -173,8 +186,29 @@ class IPMAccuracyEvaluator:
         if valid_depths.size == 0:
             return None
 
+        # Habitat depth is measured along the camera optical axis.
+        # Convert each valid depth value into the corresponding horizontal
+        # forward distance so it is comparable with the IPM prediction.
+        valid_rows = np.nonzero(valid_mask)[0].astype(np.float64)
+        pixel_slopes = (
+            valid_rows - self.principal_y
+        ) / self.focal_length
+
+        gt_forward_distances = valid_depths * (
+            self.pitch_cos
+            - pixel_slopes * self.pitch_sin
+        )
+
+        gt_forward_distances = gt_forward_distances[
+            np.isfinite(gt_forward_distances)
+            & (gt_forward_distances > 0.0)
+        ]
+
+        if gt_forward_distances.size == 0:
+            return None
+
         gt_distance = float(
-            np.median(valid_depths)
+            np.median(gt_forward_distances)
         )
 
         lowest_index = int(
@@ -196,12 +230,20 @@ class IPMAccuracyEvaluator:
             not np.isfinite(lowest_pixel_depth)
             or lowest_pixel_depth <= 0.0
         ):
-            lowest_pixel_depth = gt_distance
+            lowest_pixel_depth = float(
+                np.median(valid_depths)
+            )
 
-        vertical_drop = (
+        lowest_pixel_slope = (
             (lowest_y - self.principal_y)
             / self.focal_length
-            * lowest_pixel_depth
+        )
+
+        # Convert camera-axis depth into world vertical displacement while
+        # accounting for the fixed downward camera pitch.
+        vertical_drop = lowest_pixel_depth * (
+            self.pitch_sin
+            + lowest_pixel_slope * self.pitch_cos
         )
 
         lowest_point_height = (

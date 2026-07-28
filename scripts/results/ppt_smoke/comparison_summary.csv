@@ -1,0 +1,4 @@
+model_name,model_path,model_size_mb,parameter_count_m,gpu_memory_mb,process_gpu_memory_mb,frame_count,mean_latency_ms,fps,mean_detections,mean_confidence,spl,nav_time,path_length,collision_count,collision_rate,step_count,action_count,success_rate
+yolo26n_seg_pt,yolo26n-seg.pt,6.41,2.72,252.0,252.0,112,6.787,147.348,1.098,0.228,0.958,1.07,13.479,2.0,0.018,113.0,112.0,1.0
+yolo26n_seg_onnx,yolo26n-seg.onnx,10.65,,346.0,346.0,112,7.598,131.605,1.161,0.239,0.958,1.136,13.479,2.0,0.018,113.0,112.0,1.0
+yolo26n_seg_fp16_engine,yolo26n-seg_fp16.engine,8.35,,196.0,196.0,112,4.279,233.679,1.143,0.24,0.958,0.76,13.479,2.0,0.018,113.0,112.0,1.0

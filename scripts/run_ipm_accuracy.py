@@ -20,6 +20,7 @@ IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
 CAMERA_HEIGHT = 1.5
 CAMERA_HFOV_DEG = 90.0
+CAMERA_PITCH_DEG = 15.0
 
 FOCAL_LENGTH = IMAGE_WIDTH / (
     2.0
@@ -47,6 +48,7 @@ def run_ipm_accuracy(
         camera_height=CAMERA_HEIGHT,
         focal_length=FOCAL_LENGTH,
         img_height=IMAGE_HEIGHT,
+        camera_pitch_deg=CAMERA_PITCH_DEG,
         device=0,
     )
 
@@ -64,6 +66,7 @@ def run_ipm_accuracy(
         camera_height=CAMERA_HEIGHT,
         focal_length=FOCAL_LENGTH,
         image_height=IMAGE_HEIGHT,
+        camera_pitch_deg=CAMERA_PITCH_DEG,
         save_root=save_root,
         bottom_band_height=5,
         contact_height_threshold=0.15,
