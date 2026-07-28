@@ -279,7 +279,6 @@ class PresentationFrameCollector:
             rgb_frame[..., :3].astype(np.uint8)
         )
         frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
-        mask_layer = frame.copy()
 
         palette = [
             (55, 170, 255),
@@ -290,16 +289,37 @@ class PresentationFrameCollector:
             (185, 185, 80),
         ]
 
+        # Keep non-selected detections visible but visually subordinate.
+        secondary_mask_layer = frame.copy()
         for index, detection in enumerate(prepared_detections):
+            if index == selected_index:
+                continue
             color = palette[index % len(palette)]
             cv2.fillPoly(
-                mask_layer,
+                secondary_mask_layer,
                 [detection["polygon"]],
                 color,
             )
 
+        secondary_alpha = min(self.mask_alpha * 0.25, 0.10)
         frame = cv2.addWeighted(
-            mask_layer,
+            secondary_mask_layer,
+            secondary_alpha,
+            frame,
+            1.0 - secondary_alpha,
+            0.0,
+        )
+
+        # Emphasize only the selected object used for the IPM example.
+        selected_mask_layer = frame.copy()
+        selected_detection = prepared_detections[selected_index]
+        cv2.fillPoly(
+            selected_mask_layer,
+            [selected_detection["polygon"]],
+            (0, 215, 255),
+        )
+        frame = cv2.addWeighted(
+            selected_mask_layer,
             self.mask_alpha,
             frame,
             1.0 - self.mask_alpha,
@@ -313,7 +333,7 @@ class PresentationFrameCollector:
                 if selected
                 else palette[index % len(palette)]
             )
-            thickness = 3 if selected else 2
+            thickness = 3 if selected else 1
 
             cv2.polylines(
                 frame,
@@ -324,24 +344,22 @@ class PresentationFrameCollector:
                 lineType=cv2.LINE_AA,
             )
 
-            class_label = (
-                f"{detection['class_name']}  "
-                f"conf={detection['confidence']:.2f}"
-            )
-            if detection["is_sensitive"]:
-                class_label += "  [SENSITIVE]"
-
-            label_x = int(np.min(detection["polygon"][:, 0]))
-            label_y = int(np.min(detection["polygon"][:, 1])) - 6
-            self._draw_text_box(
-                frame=frame,
-                lines=[class_label],
-                anchor=(label_x, label_y),
-                accent_color=color,
-                font_scale=0.43,
-            )
-
+            # Show a text label only for the selected object.
             if selected:
+                class_label = (
+                    f"{detection['class_name']} | "
+                    f"conf. {detection['confidence']:.2f} | sensitive"
+                )
+                label_x = int(np.min(detection["polygon"][:, 0]))
+                label_y = int(np.min(detection["polygon"][:, 1])) - 6
+                self._draw_text_box(
+                    frame=frame,
+                    lines=[class_label],
+                    anchor=(label_x, label_y),
+                    accent_color=color,
+                    font_scale=0.43,
+                )
+
                 lowest_x, lowest_y = detection["lowest_point"]
                 cv2.circle(
                     frame,
@@ -363,37 +381,40 @@ class PresentationFrameCollector:
 
                 self._draw_text_box(
                     frame=frame,
-                    lines=["Polygon lowest point"],
+                    lines=["Lowest polygon point used for IPM"],
                     anchor=(lowest_x + 10, lowest_y - 8),
                     accent_color=(0, 215, 255),
                     font_scale=0.40,
                 )
 
         selected = prepared_detections[selected_index]
-        safety_status = (
-            "VIOLATION"
-            if selected["ipm_distance"] < selected["safety_distance"]
-            else "SAFE"
+        avoidance_triggered = (
+            selected["ipm_distance"] < selected["safety_distance"]
         )
+        safety_response = (
+            "Avoidance triggered"
+            if avoidance_triggered
+            else "No avoidance required"
+        )
+        readable_action = str(action).replace("_", " ").title()
 
         summary_lines = [
-            "Perception-to-Safety Example",
-            f"Navigation step: {int(step)} | Action: {action}",
             (
-                f"Object: {selected['class_name']} | "
-                f"Confidence: {selected['confidence']:.2f}"
+                f"Selected object: {selected['class_name']} "
+                f"(conf. {selected['confidence']:.2f})"
             ),
-            "Sensitive object: YES",
-            f"Safety distance: {selected['safety_distance']:.2f} m",
+            "Sensitive object: Yes",
+            f"Safety margin: {selected['safety_distance']:.2f} m",
             (
-                "IPM predicted distance: "
+                "IPM estimate: "
                 f"{self._format_distance(selected['ipm_distance'])}"
             ),
             (
-                "Depth GT distance: "
+                "Depth GT: "
                 f"{self._format_distance(selected['gt_distance'])}"
             ),
-            f"Safety status: {safety_status}",
+            f"Safety response: {safety_response}",
+            f"Planner action: {readable_action}",
         ]
 
         self._draw_text_box(
@@ -737,9 +758,6 @@ def main():
                 step=step,
                 dist_to_wp=dist_to_wp,
                 depth_gt_frame=depth_gt_frame,
-                semantic_safe_distance=(
-                    local_planner.semantic_safe_distance
-                ),
             )
 
             env.step(action)
