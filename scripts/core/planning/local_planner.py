@@ -6,6 +6,7 @@ class DiscreteDWAPlanner:
     def __init__(self, safe_distance=0.4, semantic_safe_distance=0.8):
         self.safe_distance = safe_distance
         self.semantic_safe_distance = semantic_safe_distance
+        self.current_safe_distance = float(safe_distance)
         self.last_turn_action = None 
         
         # Add memory variables for applying exponential moving average to sensor readings
@@ -102,6 +103,9 @@ class DiscreteDWAPlanner:
         #     print(f"[Planner Log] Sensitive object detected: {', '.join(detected_sensitive)}. Safe distance set to {current_safe_dist}m.")
         # else:
         #     print(f"[Planner Log] Path clear. Current safe distance is {current_safe_dist}m.")
+
+        # Store the safety distance actually used for this planning step.
+        self.current_safe_distance = float(current_safe_dist)
 
         heading_error = self._calculate_heading_error(agent_state, target_waypoint)
         

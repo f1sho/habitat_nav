@@ -18,6 +18,7 @@ class PerceptionModule:
         camera_height=1.5,
         focal_length=320.0,
         img_height=480,
+        camera_pitch_deg=15.0,
         device=0,
         imgsz=640,
         confidence_threshold=0.25,
@@ -48,6 +49,10 @@ class PerceptionModule:
         self.camera_height = float(camera_height)
         self.focal_length = float(focal_length)
         self.img_height = int(img_height)
+        self.camera_pitch_deg = float(camera_pitch_deg)
+        self.camera_pitch_rad = float(
+            np.deg2rad(self.camera_pitch_deg)
+        )
         self.device = device
         self.imgsz = int(imgsz)
         self.confidence_threshold = float(confidence_threshold)
@@ -58,6 +63,10 @@ class PerceptionModule:
             raise ValueError("focal_length must be greater than zero.")
         if self.img_height <= 0:
             raise ValueError("img_height must be greater than zero.")
+        if not 0.0 <= self.camera_pitch_deg < 90.0:
+            raise ValueError(
+                "camera_pitch_deg must be in the range [0, 90)."
+            )
         if self.imgsz <= 0:
             raise ValueError("imgsz must be greater than zero.")
         if not 0.0 <= self.confidence_threshold <= 1.0:
@@ -125,10 +134,15 @@ class PerceptionModule:
 
     def estimate_distance_ipm(self, polygon):
         """
-        Estimate object distance using Inverse Perspective Mapping (IPM)
-        based on the lowest point of the segmentation polygon.
+        Estimate horizontal ground distance from the polygon lowest point.
+
+        The camera is pitched downward, so the ground-ray angle is the sum of
+        the fixed camera pitch and the pixel ray angle below the optical axis.
         """
-        polygon = np.asarray(polygon, dtype=np.float32)
+        polygon = np.asarray(
+            polygon,
+            dtype=np.float32,
+        )
 
         if (
             polygon.size == 0
@@ -137,17 +151,71 @@ class PerceptionModule:
         ):
             return float("inf")
 
-        v_max = float(np.max(polygon[:, 1]))
+        v_max = float(
+            np.max(polygon[:, 1])
+        )
         c_y = self.img_height / 2.0
 
-        if not np.isfinite(v_max) or v_max <= c_y:
+        if not np.isfinite(v_max):
             return float("inf")
 
-        distance = (
-            self.camera_height * self.focal_length
-        ) / (v_max - c_y)
+        pixel_down_angle = float(
+            np.arctan2(
+                v_max - c_y,
+                self.focal_length,
+            )
+        )
+        ground_ray_angle = (
+            self.camera_pitch_rad
+            + pixel_down_angle
+        )
+
+        # Pixels at or above the geometric horizon do not intersect the ground
+        # in front of the camera.
+        if ground_ray_angle <= 0.0:
+            return float("inf")
+
+        tangent = float(
+            np.tan(ground_ray_angle)
+        )
+
+        if not np.isfinite(tangent) or tangent <= 0.0:
+            return float("inf")
+
+        distance = self.camera_height / tangent
+
+        if not np.isfinite(distance) or distance <= 0.0:
+            return float("inf")
 
         return float(distance)
+
+    def get_bottom_row_distance_limit(self):
+        """
+        Return the distance represented by the lowest image row.
+
+        Objects closer than this value may have a ground-contact point outside
+        the image and therefore cannot be distinguished reliably by IPM.
+        """
+        bottom_v = float(self.img_height - 1)
+        c_y = self.img_height / 2.0
+        pixel_down_angle = float(
+            np.arctan2(
+                bottom_v - c_y,
+                self.focal_length,
+            )
+        )
+        ground_ray_angle = (
+            self.camera_pitch_rad
+            + pixel_down_angle
+        )
+
+        if ground_ray_angle <= 0.0:
+            return float("inf")
+
+        return float(
+            self.camera_height
+            / np.tan(ground_ray_angle)
+        )
 
     def _get_class_name(self, class_id):
         """Return a class name for list- or dict-based model metadata."""

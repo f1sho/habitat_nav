@@ -180,7 +180,7 @@ def main():
                 step=step,
                 dist_to_wp=dist_to_wp,
                 depth_gt_frame=depth_gt_frame,
-                semantic_safe_distance=local_planner.semantic_safe_distance,
+                current_safe_distance=local_planner.current_safe_distance,
             )
 
             env.step(action)

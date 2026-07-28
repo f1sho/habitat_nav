@@ -212,7 +212,7 @@ class DemoVisualizer:
         step,
         dist_to_wp,
         depth_gt_frame=None,
-        semantic_safe_distance=1.2,
+        current_safe_distance=0.4,
     ):
         """
         Display and optionally save one navigation frame.
@@ -353,9 +353,7 @@ class DemoVisualizer:
 
                 status = self._get_safety_status(
                     ipm_distance=ipm_distance,
-                    safety_distance=(
-                        semantic_safe_distance
-                    ),
+                    safety_distance=current_safe_distance,
                 )
 
                 sensitive_rows.append(
@@ -418,17 +416,12 @@ class DemoVisualizer:
                 f"{waypoint_distance_text}"
             ),
             (
-                "Navigation input: "
-                "RGB + Segmentation + IPM"
-            ),
-            (
-                "Sensitive safety distance: "
-                f"{semantic_safe_distance:.2f}m"
+                "Current safe distance: "
+                f"{current_safe_distance:.2f}m"
             ),
         ]
 
         hud_statuses = [
-            None,
             None,
             None,
             None,
