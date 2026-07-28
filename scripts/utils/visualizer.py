@@ -1,106 +1,607 @@
 import cv2
 import numpy as np
 
+
 class DemoVisualizer:
-    def __init__(self, window_name="Semantic Navigation Demo", save_video=True):
+    """
+    Visualize navigation, sensitive-object detections, IPM distance,
+    safety distance, and Habitat depth reference.
+    """
+
+    SENSITIVE_OBJECTS = {
+        "chair",
+        "potted plant",
+        "tv",
+        "bed",
+        "sofa",
+        "vase",
+    }
+
+    def __init__(
+        self,
+        window_name="Semantic Navigation Demo",
+        save_video=True,
+        video_path="demo_output.mp4",
+        video_fps=8.0,
+    ):
         self.window_name = window_name
         self.save_video = save_video
+        self.video_path = video_path
+        self.video_fps = video_fps
         self.video_writer = None
 
-    def show_frame(self, rgb_frame, detections, action, step, dist_to_wp):
-        # Convert RGBA to BGR
-        bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGBA2BGR)
+    @staticmethod
+    def _to_float(value):
+        """Convert a value to a valid positive distance."""
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            return None
 
-        # Draw true segmentation outlines and ignore bounding boxes
-        for det in detections:
-            # Print keys to check the actual data structure from the perception module
-            print(f"Debug check keys: {list(det.keys())}")
-            
-            text_x = None
-            text_y = None
-            
-            if 'polygon' in det:
-                polygon = np.array(det['polygon'])
-                poly_pts = np.int32([polygon])
-                cv2.polylines(bgr_frame, poly_pts, isClosed=True, color=(0, 255, 0), thickness=2)
-                text_x = int(np.min(polygon[:, 0]))
-                text_y = int(np.min(polygon[:, 1])) - 10
-                
-            elif 'mask' in det:
-                mask_data = det['mask']
-                if isinstance(mask_data, np.ndarray) and len(mask_data.shape) == 2:
-                    mask_uint8 = (mask_data * 255).astype(np.uint8)
-                    contours, _ = cv2.findContours(mask_uint8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                    cv2.drawContours(bgr_frame, contours, -1, (0, 255, 0), 2)
-                    
-                    if len(contours) > 0:
-                        all_pts = np.vstack(contours)
-                        text_x = int(np.min(all_pts[:, 0, 0]))
-                        text_y = int(np.min(all_pts[:, 0, 1])) - 10
-                    else:
-                        continue
-                else:
-                    polygon = np.array(mask_data)
-                    poly_pts = np.int32([polygon])
-                    cv2.polylines(bgr_frame, poly_pts, isClosed=True, color=(0, 255, 0), thickness=2)
-                    text_x = int(np.min(polygon[:, 0]))
-                    text_y = int(np.min(polygon[:, 1])) - 10
+        if not np.isfinite(value) or value <= 0.0:
+            return None
 
-            elif 'segmentation' in det:
-                # Catch another common key name for masks
-                seg_data = np.array(det['segmentation'])
-                poly_pts = np.int32([seg_data])
-                cv2.polylines(bgr_frame, poly_pts, isClosed=True, color=(0, 255, 0), thickness=2)
-                text_x = int(np.min(seg_data[:, 0]))
-                text_y = int(np.min(seg_data[:, 1])) - 10
+        return value
 
+    @classmethod
+    def _format_distance(cls, value):
+        """Format a distance for display."""
+        value = cls._to_float(value)
+
+        if value is None:
+            return "N/A"
+
+        return f"{value:.2f}m"
+
+    @classmethod
+    def _get_safety_status(
+        cls,
+        ipm_distance,
+        safety_distance,
+    ):
+        """
+        Determine safety status using the IPM distance because IPM is the
+        distance information available to the navigation system.
+        """
+        ipm_distance = cls._to_float(ipm_distance)
+
+        if ipm_distance is None:
+            return "UNKNOWN"
+
+        if ipm_distance < safety_distance:
+            return "TOO CLOSE"
+
+        return "CLEAR"
+
+    @staticmethod
+    def _get_depth_gt(
+        polygon,
+        depth_frame,
+        bottom_band_height=5,
+    ):
+        """
+        Calculate the Habitat depth reference from the bottom region of the
+        segmentation polygon.
+
+        The depth reference is used only for visualization and evaluation.
+        """
+        if polygon is None or depth_frame is None:
+            return None
+
+        polygon = np.asarray(
+            polygon,
+            dtype=np.float32,
+        )
+
+        depth_frame = np.asarray(
+            depth_frame,
+            dtype=np.float32,
+        )
+
+        depth_frame = np.squeeze(depth_frame)
+
+        if (
+            polygon.ndim != 2
+            or polygon.shape[0] < 3
+            or polygon.shape[1] < 2
+            or depth_frame.ndim != 2
+        ):
+            return None
+
+        frame_height, frame_width = depth_frame.shape
+
+        polygon_int = np.round(
+            polygon[:, :2]
+        ).astype(np.int32)
+
+        polygon_int[:, 0] = np.clip(
+            polygon_int[:, 0],
+            0,
+            frame_width - 1,
+        )
+
+        polygon_int[:, 1] = np.clip(
+            polygon_int[:, 1],
+            0,
+            frame_height - 1,
+        )
+
+        polygon_mask = np.zeros(
+            (frame_height, frame_width),
+            dtype=np.uint8,
+        )
+
+        cv2.fillPoly(
+            polygon_mask,
+            [polygon_int],
+            1,
+        )
+
+        bottom_y = int(
+            np.max(polygon_int[:, 1])
+        )
+
+        top_y = max(
+            0,
+            bottom_y - bottom_band_height + 1,
+        )
+
+        bottom_band_mask = np.zeros(
+            (frame_height, frame_width),
+            dtype=bool,
+        )
+
+        bottom_band_mask[
+            top_y:bottom_y + 1,
+            :
+        ] = True
+
+        valid_mask = (
+            polygon_mask.astype(bool)
+            & bottom_band_mask
+            & np.isfinite(depth_frame)
+            & (depth_frame > 0.0)
+        )
+
+        valid_depths = depth_frame[valid_mask]
+
+        if valid_depths.size == 0:
+            return None
+
+        return float(
+            np.median(valid_depths)
+        )
+
+    @staticmethod
+    def _draw_text(
+        frame,
+        text,
+        position,
+        color,
+        font_scale=0.52,
+        thickness=2,
+    ):
+        """Draw readable text with a black outline."""
+        cv2.putText(
+            frame,
+            text,
+            position,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            font_scale,
+            (0, 0, 0),
+            thickness + 2,
+            cv2.LINE_AA,
+        )
+
+        cv2.putText(
+            frame,
+            text,
+            position,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            font_scale,
+            color,
+            thickness,
+            cv2.LINE_AA,
+        )
+
+    def show_frame(
+        self,
+        rgb_frame,
+        detections,
+        action,
+        step,
+        dist_to_wp,
+        depth_gt_frame=None,
+        semantic_safe_distance=1.2,
+    ):
+        """
+        Display and optionally save one navigation frame.
+        """
+        if rgb_frame is None:
+            return
+
+        detections = detections or []
+
+        if (
+            rgb_frame.ndim == 3
+            and rgb_frame.shape[2] == 4
+        ):
+            bgr_frame = cv2.cvtColor(
+                rgb_frame,
+                cv2.COLOR_RGBA2BGR,
+            )
+        else:
+            bgr_frame = cv2.cvtColor(
+                rgb_frame,
+                cv2.COLOR_RGB2BGR,
+            )
+
+        frame_height, frame_width = (
+            bgr_frame.shape[:2]
+        )
+
+        sensitive_rows = []
+
+        for detection in detections:
+            class_name = str(
+                detection.get(
+                    "class_name",
+                    "unknown",
+                )
+            )
+
+            polygon = detection.get(
+                "polygon"
+            )
+
+            if polygon is None:
+                continue
+
+            polygon = np.asarray(
+                polygon,
+                dtype=np.float32,
+            )
+
+            if (
+                polygon.ndim != 2
+                or polygon.shape[0] < 3
+                or polygon.shape[1] < 2
+            ):
+                continue
+
+            polygon_int = np.round(
+                polygon[:, :2]
+            ).astype(np.int32)
+
+            polygon_int[:, 0] = np.clip(
+                polygon_int[:, 0],
+                0,
+                frame_width - 1,
+            )
+
+            polygon_int[:, 1] = np.clip(
+                polygon_int[:, 1],
+                0,
+                frame_height - 1,
+            )
+
+            confidence = detection.get(
+                "confidence",
+                0.0,
+            )
+
+            ipm_distance = detection.get(
+                "estimated_distance"
+            )
+
+            is_sensitive = (
+                class_name.lower()
+                in self.SENSITIVE_OBJECTS
+            )
+
+            if is_sensitive:
+                outline_color = (
+                    0,
+                    0,
+                    255,
+                )
+                outline_thickness = 3
             else:
-                # If only boxes are available the drawing is skipped
-                continue
+                outline_color = (
+                    0,
+                    255,
+                    0,
+                )
+                outline_thickness = 2
 
-            conf = det.get('confidence', 0.0)
-            name = det.get('class_name', 'Unknown')
-            
-            if text_y is None or text_x is None:
-                continue
-                
-            if text_y < 10:
-                text_y = 20
-                
-            cv2.putText(bgr_frame, f"{name} {conf:.2f}", (text_x, text_y), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            cv2.polylines(
+                bgr_frame,
+                [polygon_int],
+                isClosed=True,
+                color=outline_color,
+                thickness=outline_thickness,
+                lineType=cv2.LINE_AA,
+            )
 
-        # Draw semi transparent HUD at the top left corner
+            label_x = int(
+                np.min(polygon_int[:, 0])
+            )
+
+            label_y = int(
+                np.min(polygon_int[:, 1])
+            ) - 10
+
+            label_x = max(
+                8,
+                min(label_x, frame_width - 210),
+            )
+
+            label_y = max(
+                20,
+                label_y,
+            )
+
+            if is_sensitive:
+                object_label = (
+                    f"SENSITIVE: {class_name}"
+                )
+
+                depth_gt = self._get_depth_gt(
+                    polygon=polygon,
+                    depth_frame=depth_gt_frame,
+                )
+
+                status = self._get_safety_status(
+                    ipm_distance=ipm_distance,
+                    safety_distance=(
+                        semantic_safe_distance
+                    ),
+                )
+
+                sensitive_rows.append(
+                    {
+                        "name": class_name,
+                        "ipm": (
+                            self._format_distance(
+                                ipm_distance
+                            )
+                        ),
+                        "gt": (
+                            self._format_distance(
+                                depth_gt
+                            )
+                        ),
+                        "status": status,
+                    }
+                )
+            else:
+                try:
+                    confidence = float(
+                        confidence
+                    )
+                except (TypeError, ValueError):
+                    confidence = 0.0
+
+                object_label = (
+                    f"{class_name} "
+                    f"{confidence:.2f}"
+                )
+
+            self._draw_text(
+                frame=bgr_frame,
+                text=object_label,
+                position=(
+                    label_x,
+                    label_y,
+                ),
+                color=outline_color,
+                font_scale=0.5,
+                thickness=2,
+            )
+
+        displayed_rows = sensitive_rows[:4]
+
+        try:
+            waypoint_distance_text = (
+                f"{float(dist_to_wp):.2f}m"
+            )
+        except (TypeError, ValueError):
+            waypoint_distance_text = "N/A"
+
+        hud_lines = [
+            (
+                f"Step: {step} | "
+                f"Action: {action}"
+            ),
+            (
+                "Distance to waypoint: "
+                f"{waypoint_distance_text}"
+            ),
+            (
+                "Navigation input: "
+                "RGB + Segmentation + IPM"
+            ),
+            (
+                "Sensitive safety distance: "
+                f"{semantic_safe_distance:.2f}m"
+            ),
+        ]
+
+        hud_statuses = [
+            None,
+            None,
+            None,
+            None,
+        ]
+
+        if displayed_rows:
+            for row in displayed_rows:
+                hud_lines.append(
+                    f"{row['name']} | "
+                    f"IPM: {row['ipm']} | "
+                    f"Depth GT: {row['gt']} | "
+                    f"{row['status']}"
+                )
+
+                hud_statuses.append(
+                    row["status"]
+                )
+        else:
+            hud_lines.append(
+                "Sensitive objects: none detected"
+            )
+
+            hud_statuses.append(None)
+
+        line_height = 27
+        top_padding = 13
+        bottom_padding = 12
+        first_baseline = 27
+
+        hud_height = (
+            top_padding
+            + bottom_padding
+            + line_height * len(hud_lines)
+        )
+
+        hud_height = min(
+            hud_height,
+            frame_height - 10,
+        )
+
         overlay = bgr_frame.copy()
-        cv2.rectangle(overlay, (5, 5), (350, 100), (0, 0, 0), -1)
-        cv2.addWeighted(overlay, 0.6, bgr_frame, 0.4, 0, bgr_frame)
 
-        cv2.putText(bgr_frame, f"Step: {step} | Action: {action}", (15, 40), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
-        cv2.putText(bgr_frame, f"Dist to WP: {dist_to_wp:.2f}m", (15, 80), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        cv2.rectangle(
+            overlay,
+            (5, 5),
+            (
+                frame_width - 5,
+                5 + hud_height,
+            ),
+            (45, 45, 45),
+            -1,
+        )
 
-        # Save MP4 video
+        cv2.addWeighted(
+            overlay,
+            0.75,
+            bgr_frame,
+            0.25,
+            0,
+            bgr_frame,
+        )
+
+        for line_index, line in enumerate(
+            hud_lines
+        ):
+            text_y = (
+                5
+                + top_padding
+                + first_baseline
+                + line_index * line_height
+            )
+
+            status = hud_statuses[
+                line_index
+            ]
+
+            if line_index == 0:
+                text_color = (
+                    0,
+                    255,
+                    255,
+                )
+            elif status == "TOO CLOSE":
+                text_color = (
+                    0,
+                    0,
+                    255,
+                )
+            elif status == "CLEAR":
+                text_color = (
+                    0,
+                    255,
+                    0,
+                )
+            elif status == "UNKNOWN":
+                text_color = (
+                    0,
+                    165,
+                    255,
+                )
+            else:
+                text_color = (
+                    255,
+                    255,
+                    255,
+                )
+
+            self._draw_text(
+                frame=bgr_frame,
+                text=line,
+                position=(
+                    16,
+                    text_y,
+                ),
+                color=text_color,
+                font_scale=0.52,
+                thickness=1,
+            )
+
         if self.save_video:
             if self.video_writer is None:
-                h, w = bgr_frame.shape[:2]
-                # Use mp4v codec for video saving
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                self.video_writer = cv2.VideoWriter('demo_output.mp4', fourcc, 8.0, (w, h))
-            self.video_writer.write(bgr_frame)
+                fourcc = (
+                    cv2.VideoWriter_fourcc(
+                        *"mp4v"
+                    )
+                )
 
-        # Safe window display to catch cross thread errors
+                self.video_writer = (
+                    cv2.VideoWriter(
+                        self.video_path,
+                        fourcc,
+                        self.video_fps,
+                        (
+                            frame_width,
+                            frame_height,
+                        ),
+                    )
+                )
+
+                if not self.video_writer.isOpened():
+                    print(
+                        "Warning: Unable to open "
+                        f"video writer: {self.video_path}"
+                    )
+                    self.video_writer = None
+
+            if self.video_writer is not None:
+                self.video_writer.write(
+                    bgr_frame
+                )
+
         try:
-            cv2.imshow(self.window_name, bgr_frame)
-            cv2.waitKey(10) 
-        except Exception as e:
-            pass 
+            cv2.imshow(
+                self.window_name,
+                bgr_frame,
+            )
+
+            cv2.waitKey(1)
+        except cv2.error:
+            pass
 
     def close(self):
+        """Release video and display resources."""
         if self.video_writer is not None:
             self.video_writer.release()
-            print("Demo video saved as 'demo_output.mp4'!")
+            self.video_writer = None
+
+            print(
+                f"Demo video saved to: "
+                f"{self.video_path}"
+            )
+
         try:
             cv2.destroyAllWindows()
-        except:
+        except cv2.error:
             pass

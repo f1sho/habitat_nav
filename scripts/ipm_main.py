@@ -10,6 +10,7 @@ from utils.trajectory_plotter import plot_topdown_trajectory
 from evaluation.navigation_metrics import NavigationMetrics
 from evaluation.evaluator import Evaluator
 from evaluation.model_metrics import ModelMetrics
+from run_navigation import _build_ipm_distance_map
 
 def main():
     MODEL_PATH = "yolo26n-seg.onnx"
@@ -17,7 +18,11 @@ def main():
     navmesh_path = "/home/hannah/data/replica_v1/apartment_2/habitat/mesh_semantic.navmesh"
 
     print("--- Initializing Modules ---")
-    env = HabitatEnv(scene_path, navmesh_path)
+    env = HabitatEnv(
+    scene_path,
+    navmesh_path,
+    enable_depth=True,
+    )
 
     # Use a dynamic seed to allow searching for new long routes
     dynamic_seed = int(time.time())
@@ -134,22 +139,49 @@ def main():
             # Slice the array to keep only the first 3 channels
             rgb_frame = rgb_frame[..., :3]
             
-            # Create a dummy depth frame filled with 10.0 meters
-            # This prevents KeyError and forces the planner to rely solely on IPM detections
-            depth_frame = np.ones((480, 640), dtype=np.float32) * 10.0
+            # # Create a dummy depth frame filled with 10.0 meters
+            # # This prevents KeyError and forces the planner to rely solely on IPM detections
+            # depth_frame = np.ones((480, 640), dtype=np.float32) * 10.0
+
+            # detections, perception_metrics = perception.process_frame(rgb_frame)
+
+            depth_gt_frame = obs["depth_sensor"]
 
             detections, perception_metrics = perception.process_frame(rgb_frame)
+
+            frame_height, frame_width = rgb_frame.shape[:2]
+
+            # Build the planner input only from RGB detections and IPM estimates.
+            ipm_distance_map = _build_ipm_distance_map(
+                detections=detections,
+                frame_height=frame_height,
+                frame_width=frame_width,
+            )
+
             # print(perception_metrics)
             evaluator.update_frame(
                 step,
                 perception_metrics
             )
 
-            action = local_planner.get_best_action(depth_frame, detections, agent.state, target_wp)
+            action = local_planner.get_best_action(
+                ipm_distance_map,
+                detections,
+                agent.state,
+                target_wp,
+            )
             dist_to_wp = np.linalg.norm(agent.state.position - target_wp)
             print(f"Step {step}: Distance to WP={dist_to_wp:.2f}m | Action={action}")
 
-            visualizer.show_frame(rgb_frame, detections, action, step, dist_to_wp)
+            visualizer.show_frame(
+                rgb_frame=rgb_frame,
+                detections=detections,
+                action=action,
+                step=step,
+                dist_to_wp=dist_to_wp,
+                depth_gt_frame=depth_gt_frame,
+                semantic_safe_distance=local_planner.semantic_safe_distance,
+            )
 
             env.step(action)
             time.sleep(0.1)
