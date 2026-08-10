@@ -1,0 +1,2 @@
+samples,mae_m,rmse_m,mape_pct,mean_signed_error_m,max_absolute_error_m,camera_height_m,camera_pitch_deg,image_width_px,image_height_px,hfov_deg,focal_length_px,principal_y_px,geometric_horizon_y_px,minimum_visible_ground_distance_m,requested_min_distance_m,requested_max_distance_m,distance_step_m
+177,0.0204577187970096,0.029144629993063186,0.3084359119971852,0.0024878367576337923,0.09058198652314609,1.5,15.0,640,480,90.0,320.00000000000006,240.0,154.25625842204073,1.1822867244426092,1.2,10.0,0.05
