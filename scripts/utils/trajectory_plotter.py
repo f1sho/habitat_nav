@@ -30,7 +30,7 @@ def plot_topdown_trajectory(env, start_pos, goal_pos, waypoints, actual_trajecto
     fig, ax = plt.subplots(figsize=(10, 10))
 
     # Plot the binary top down map
-    ax.imshow(topdown_map, cmap="gray", origin="lower")
+    ax.imshow(topdown_map, cmap="gray", origin="upper")
 
     # Extract and plot the planned global path
     if waypoints:
